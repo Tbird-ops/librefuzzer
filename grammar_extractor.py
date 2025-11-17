@@ -30,20 +30,35 @@ while len(to_check) > 0:
                     in_between_results = list(map(cleaner, results))
                     clean_results = [i for i in in_between_results if i is not None]
                     if len(clean_results) > 0:
-                        for result in clean_results:
-                            print(result)
                         with open(f"{os.path.join(root, file)}.txt", "w") as outfile:
                             for result in clean_results:
+                                print(result)
                                 outfile.write(result)
                                 outfile.write("\n")
                     else:
                         results = soup.select("span[data-tooltip]")
-                        if file in ["func_unicode.html", "func_unichar.html"]:
+                        if file in [
+                            "func_unicode.html",
+                            "func_unichar.html",
+                        ]:  # Edge case where span is class "literal"
                             results.clear()
                             spans = soup.find_all("span")
                             for span in spans:
                                 if span["class"] == ["literal"]:
                                     results.append(span)
+                        elif file == "operator.html":  # Edge case where data is in tables
+                            results.clear()
+                            rows = soup.find_all("tr")
+                            for row in rows[:-10]:
+                                cells = row.find_all("td")
+                                if cells:
+                                    results.append(cells[0].get_text(strip=True))
+                            with open(f"{os.path.join(root, file)}.txt", "w") as outfile:
+                                for result in results:
+                                    print(result)
+                                    outfile.write(result)
+                                    outfile.write("\n")
+                            continue
                         if len(results) > 0:
                             print(results[0].text)
                             with open(f"{os.path.join(root, file)}.txt", "w") as outfile:
