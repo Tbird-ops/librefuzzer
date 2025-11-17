@@ -7,6 +7,7 @@
 import os  # Handle filesystem operations
 import time  # Delay requests as not to spam website
 import logging  # Handle log level output
+import random as rand  # Handle random number creation
 
 # Easier logging control for tracking program status
 logging.basicConfig(level=logging.INFO)
@@ -22,11 +23,11 @@ These are the online documentation outlines of the syntactical requirements of c
 Some outlier pages exist on the following:
 - Date + Time: Does not provide definitions in page, but links to subpages for all commands with a definition
 - Text: Some commands are sublinked on the page, and a few comparison commands are listed differently.
+- Addin3: There are several commands sublinked, but most are defined in page
 """
-targets = [
+base_targets = [
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060107.html?DbPAR=CALC",  # array
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060120.html?DbPAR=CALC",  # bitwise
-    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060101.html?DbPAR=CALC",  # database
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060102.html?DbPAR=CALC",  # date + time  (Contains sublinks to more defs)
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060103.html?DbPAR=CALC",  # finance pt 1
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060119.html?DbPAR=CALC",  # finance pt 2
@@ -41,13 +42,15 @@ targets = [
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060185.html?DbPAR=CALC",  # stats pt 5
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060109.html?DbPAR=CALC",  # spreadsheet
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060110.html?DbPAR=CALC",  # text     (Contains sublinks to defs)
-    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060199.html?DbPAR=CALC",  # operators (Needs better scraping)
+    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060199.html?DbPAR=CALC",  # operators (Needs better scraping or by hand. Not many items)
+    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060111.html?DbPAR=CALC",  # Add-ins pt 1
+    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060115.html?DbPAR=CALC",  # Add-ins pt 2
+    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060116.html?DbPAR=CALC",  # Add-ins pt 3 (Has both definitions and sublinks)
 ]
 
-labels = [
+base_labels = [
     "array",
     "bitwise",
-    "database",
     "datetime",
     "finance1",
     "finance2",
@@ -63,159 +66,115 @@ labels = [
     "spreadsheeet",
     "text",
     "operator",
+    "addin1",
+    "addin2",
+    "addin3",
 ]
-logger.info("Targets and labels defined.")
+url_preface = "https://help.libreoffice.org/latest/"
+logger.info("Initial targets and labels defined.")
+
+
+def jitter() -> float:
+    """Produce a random float value between 0-5 to wait between fetching a page"""
+    tmp = float(rand.randint(1, 5))
+    offset = 1.0 / float(rand.randint(1, 10))
+    tmp = tmp - offset
+    return float(tmp)
+
+
+def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
+    """Collect a copy of all scraped pages"""
+    logger.info("Webscrape begin:")
+
+    subdir = directory if directory is not None else ""
+    if not os.path.exists(f"page_scrapes/{subdir}"):
+        logger.info(f"Making 'page_scrapes' directory.")
+        os.mkdir(f"page_scrapes/{subdir}")
+
+    for pair in labeled_targets:
+        label = pair[0]
+        target = pair[1]
+
+        if label in ["01140000", "00000005", "04060110"]:  # Empty edgecases produced in adding additional TEXT sublinks
+            continue
+
+        if os.path.isfile(f"page_scrapes/{subdir}/{label}.html"):
+            logger.info(f"Page {label} already scraped.")
+            continue
+        else:
+            logger.info(f"Page {label} now scraping.")
+            time.sleep(jitter())
+            page = requests.get(target)
+            if page.status_code == 200:
+                logger.info(f"Now writing: {label}.html")
+                filename = (
+                    f"page_scrapes/{label}.html" if directory is None else f"page_scrapes/{directory}/{label}.html"
+                )
+                with open(filename, "wb") as f:
+                    f.write(page.content)
+            else:
+                logger.warn(f"Page {label} not scraped.")
+
+
+def extractor(html_file: str, start: int, stop: int) -> list[str]:
+    with open(html_file, "r") as f:
+        logger.info(f"Beginning to parse {html_file}")
+        f_soup = BeautifulSoup(f.read(), "html.parser")
+        hrefs = [tag["href"] for tag in f_soup.find_all("a", href=True)]
+        ret_targets = [f"{url_preface}{href}" for href in hrefs[start:stop]]
+        return ret_targets
+
+
+def labeler(labels: list[str], targets: list[str]) -> list[tuple]:
+    """Make nice pairs of labels and target URLs for easier processing later"""
+    lt = list(zip(labels, targets))
+    logger.info("Labeled target pairs created.")
+    return lt
+
+
+def label_maker(unlabeled_targets: list[str]) -> list[str]:
+    """Takes a list of URL targets, and makes a label list based on the HTML file in the path"""
+    return [label.split("/")[-1].split(".")[0] for label in unlabeled_targets]
+
 
 """
-Make nice pairs of labels and target URLs for easier processing later
+MAIN SCRAPE
 """
-labeled_targets = list(zip(labels, targets))
-logger.info("Labeled target pairs created.")
+scraper_cacher(labeler(base_labels, base_targets))
 
-"""
-Collect a copy of all pages to scrape 
-"""
-logger.info("Webscrape begin:")
-pages = []
-for pair in labeled_targets:
-    label = pair[0]
-    target = pair[1]
-    if os.path.isfile(f"page_scrapes/{label}.html"):
-        logger.info(f"Page {label} already scraped.")
-        continue
-    else:
-        logger.info(f"Page {label} now scraping.")
-        time.sleep(1)
-        try:
-            pages.append((label, requests.get(target)))
-        except Exception as e:
-            logger.error(f"Page {label} failed with exception {e}")
-
-"""
-To minimize requests to websites, we will cache pages locally to do further parsing pipelines.
-"""
-if len(pages) > 0:
-    try:
-        logger.info(f"Trying to make 'page_scrapes' directory.")
-        os.mkdir("page_scrapes")
-    except FileExistsError:
-        logger.warning(f"'page_scrapes' directory already exists.")
-
-    for o in pages:
-        label = o[0]
-        page = o[1]
-        logger.info(f"Now writing: {label}.html")
-        with open(f"page_scrapes/{label}.html", "wb") as f:
-            f.write(page.content)
-else:
-    logger.info("No pages scraped.")
-
-# TODO Refactor this to have function breakouts for copied code
 """
 DATETIME
 Add additional targets since Date + Time has breakouts to new pages
 Does effectively the same steps as above but needs data cleaning and acquisition from the datetime page previously collected
+PATH: "page_scrapes/datetime.html"
+START: 2
+STOP: -10
+DIRECTORY: "datetime"
 """
-url_preface = "https://help.libreoffice.org/latest/"
-dt_targets = []
-with open("page_scrapes/datetime.html", "r") as f:
-    logger.info("Beginning date time scraping.")
-    dt_soup = BeautifulSoup(f.read(), "html.parser")
-    hrefs = [tag["href"] for tag in dt_soup.find_all("a", href=True)]  # Find all sublinks within the document
-    for href in hrefs[2:-10]:  # Clean down to the function sublinks
-        dt_targets.append(f"{url_preface}{href}")  # Build new targets with full URLs
-
-logger.info("New targets added.")
-labels = [
-    label.split("/")[-1].split(".")[0]  # Each label starts as a relative URL. This cleans down to the filename
-    for label in dt_targets
-]
-
-# Reset the existing stores
-labeled_targets = list(zip(labels, dt_targets))  # Pair labels and targets
-pages.clear()
-for pair in labeled_targets:
-    label = pair[0]
-    target = pair[1]
-    if os.path.isfile(f"page_scrapes/datetime/{label}.html"):
-        logger.info(f"Page {label} already scraped.")
-        continue
-    else:
-        logger.info(f"Page {label} now scraping.")
-        time.sleep(1)
-        try:
-            pages.append((label, requests.get(target)))
-        except Exception as e:
-            logger.error(f"Page {label} failed with exception {e}")
-
-
-if len(pages) > 0:
-    try:
-        logger.info(f"Trying to make 'datetime' directory.")
-        os.mkdir("page_scrapes/datetime/")
-    except FileExistsError:
-        logger.warning(f"'page_scrapes' directory already exists.")
-
-    for o in pages:
-        label = o[0]
-        page = o[1]
-        logger.info(f"Now writing: {label}.html")
-        with open(f"page_scrapes/datetime/{label}.html", "wb") as f:
-            f.write(page.content)
-else:
-    logger.info("No pages scraped.")
+dt_targets = extractor("page_scrapes/datetime.html", 2, -10)
+scraper_cacher(labeler(label_maker(dt_targets), dt_targets), "datetime")
 
 """
 TEXT
 Add additional targets since text has breakouts to new pages
 Does effectively the same steps as above but needs data cleaning and acquisition from the datetime page previously collected
+PATH: "page_scrapes/text.html"
+START: 2
+STOP: -10
+DIRECTORY: "text"
 """
-t_targets = []
-with open("page_scrapes/text.html", "r") as f:
-    logger.info("Beginning text scraping.")
-    t_soup = BeautifulSoup(f.read(), "html.parser")
-    hrefs = [tag["href"] for tag in t_soup.find_all("a", href=True)]  # Find all sublinks within the document
-    for href in hrefs[2:-10]:  # Clean down to the function sublinks
-        t_targets.append(f"{url_preface}{href}")  # Build new targets with full URLs
+t_targets = extractor("page_scrapes/text.html", 2, -10)
+scraper_cacher(labeler(label_maker(t_targets), t_targets), "text")
 
-logger.info("New targets added.")
-labels = [
-    label.split("/")[-1].split(".")[0]  # Each label starts as a relative URL. This cleans down to the filename
-    for label in t_targets
-]
-
-# Reset the existing stores
-labeled_targets = list(zip(labels, t_targets))  # Pair labels and targets
-pages.clear()
-for pair in labeled_targets:
-    label = pair[0]
-    target = pair[1]
-    if os.path.isfile(f"page_scrapes/datetime/{label}.html"):
-        logger.info(f"Page {label} already scraped.")
-        continue
-    else:
-        logger.info(f"Page {label} now scraping.")
-        time.sleep(1)
-        try:
-            pages.append((label, requests.get(target)))
-        except Exception as e:
-            logger.error(f"Page {label} failed with exception {e}")
-
-# TODO refactor this to elimate the separate caching step
-if len(pages) > 0:
-    try:
-        logger.info(f"Trying to make 'datetime' directory.")
-        os.mkdir("page_scrapes/text/")
-    except FileExistsError:
-        logger.warning(f"'page_scrapes' directory already exists.")
-
-    for o in pages:
-        label = o[0]
-        page = o[1]
-        logger.info(f"Now writing: {label}.html")
-        with open(f"page_scrapes/text/{label}.html", "wb") as f:
-            f.write(page.content)
-else:
-    logger.info("No pages scraped.")
+"""
+ADDINS3
+Add additional targets since there are some breakout pages
+PATH: "page_scrapes/addins3.html"
+START: 3
+STOP: -13
+DIRECTORY: "addins3"
+"""
+a_targets = extractor("page_scrapes/addin3.html", 3, -13)
+scraper_cacher(labeler(label_maker(a_targets), a_targets), "addin3")
 
 logger.info("FINISHED")
