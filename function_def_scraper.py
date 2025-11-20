@@ -24,9 +24,14 @@ Some outlier pages exist on the following:
 - Date + Time: Does not provide definitions in page, but links to subpages for all commands with a definition
 - Text: Some commands are sublinked on the page, and a few comparison commands are listed differently.
 - Addin3: There are several commands sublinked, but most are defined in page
+
+The following pages are omitted due to more complex requirements for cell types. Hopefully will add these later:
+- Array: Special cell range linking to perform group operations
+- Database: Rectangular cell range defining simple database with first row indicating features, 
+            and subsequent rows providing instance data
+- 
 """
 base_targets = [
-    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060107.html?DbPAR=CALC",  # array
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060120.html?DbPAR=CALC",  # bitwise
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060102.html?DbPAR=CALC",  # date + time  (Contains sublinks to more defs)
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060103.html?DbPAR=CALC",  # finance pt 1
@@ -49,7 +54,6 @@ base_targets = [
 ]
 
 base_labels = [
-    "array",
     "bitwise",
     "datetime",
     "finance1",
@@ -63,7 +67,7 @@ base_labels = [
     "stat3",
     "stat4",
     "stat5",
-    "spreadsheeet",
+    "spreadsheet",
     "text",
     "operator",
     "addin1",
@@ -86,6 +90,7 @@ def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
     """Collect a copy of all scraped pages"""
     logger.info("Webscrape begin:")
 
+    # Set the subdirectory to store page cache
     subdir = directory if directory is not None else ""
     if not os.path.exists(f"page_scrapes/{subdir}"):
         logger.info(f"Making 'page_scrapes' directory.")
@@ -95,9 +100,11 @@ def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
         label = pair[0]
         target = pair[1]
 
-        if label in ["01140000", "00000005", "04060110"]:  # Empty edgecases produced in adding additional TEXT sublinks
+        # Empty edgecases produced in adding additional TEXT sublinks
+        if label in ["01140000", "00000005", "04060110"]:
             continue
 
+        # Check if page is cached before trying to scrape it
         if os.path.isfile(f"page_scrapes/{subdir}/{label}.html"):
             logger.info(f"Page {label} already scraped.")
             continue
@@ -107,9 +114,7 @@ def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
             page = requests.get(target)
             if page.status_code == 200:
                 logger.info(f"Now writing: {label}.html")
-                filename = (
-                    f"page_scrapes/{label}.html" if directory is None else f"page_scrapes/{directory}/{label}.html"
-                )
+                filename = f"page_scrapes/{label}.html" if directory is None else f"page_scrapes/{directory}/{label}.html"
                 with open(filename, "wb") as f:
                     f.write(page.content)
             else:
@@ -117,6 +122,7 @@ def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
 
 
 def extractor(html_file: str, start: int, stop: int) -> list[str]:
+    """Used to extract page sublinks needed to find additional grammar definitions"""
     with open(html_file, "r") as f:
         logger.info(f"Beginning to parse {html_file}")
         f_soup = BeautifulSoup(f.read(), "html.parser")
@@ -140,41 +146,42 @@ def label_maker(unlabeled_targets: list[str]) -> list[str]:
 """
 MAIN SCRAPE
 """
-scraper_cacher(labeler(base_labels, base_targets))
+if __name__ == "__main__":
+    scraper_cacher(labeler(base_labels, base_targets))
 
-"""
-DATETIME
-Add additional targets since Date + Time has breakouts to new pages
-Does effectively the same steps as above but needs data cleaning and acquisition from the datetime page previously collected
-PATH: "page_scrapes/datetime.html"
-START: 2
-STOP: -10
-DIRECTORY: "datetime"
-"""
-dt_targets = extractor("page_scrapes/datetime.html", 2, -10)
-scraper_cacher(labeler(label_maker(dt_targets), dt_targets), "datetime")
+    """
+    DATETIME
+    Add additional targets since Date + Time has breakouts to new pages
+    Does effectively the same steps as above but needs data cleaning and acquisition from the datetime page previously collected
+    PATH: "page_scrapes/datetime.html"
+    START: 2
+    STOP: -10
+    DIRECTORY: "datetime"
+    """
+    dt_targets = extractor("page_scrapes/datetime.html", 2, -10)  # First 2 dead, last 10 dead
+    scraper_cacher(labeler(label_maker(dt_targets), dt_targets), "datetime")
 
-"""
-TEXT
-Add additional targets since text has breakouts to new pages
-Does effectively the same steps as above but needs data cleaning and acquisition from the datetime page previously collected
-PATH: "page_scrapes/text.html"
-START: 2
-STOP: -10
-DIRECTORY: "text"
-"""
-t_targets = extractor("page_scrapes/text.html", 2, -10)
-scraper_cacher(labeler(label_maker(t_targets), t_targets), "text")
+    """
+    TEXT
+    Add additional targets since text has breakouts to new pages
+    Does effectively the same steps as above but needs data cleaning and acquisition from the datetime page previously collected
+    PATH: "page_scrapes/text.html"
+    START: 2
+    STOP: -10
+    DIRECTORY: "text"
+    """
+    t_targets = extractor("page_scrapes/text.html", 2, -10)  # First 2 dead, last 10 dead
+    scraper_cacher(labeler(label_maker(t_targets), t_targets), "text")
 
-"""
-ADDINS3
-Add additional targets since there are some breakout pages
-PATH: "page_scrapes/addins3.html"
-START: 3
-STOP: -13
-DIRECTORY: "addins3"
-"""
-a_targets = extractor("page_scrapes/addin3.html", 3, -13)
-scraper_cacher(labeler(label_maker(a_targets), a_targets), "addin3")
+    """
+    ADDINS3
+    Add additional targets since there are some breakout pages
+    PATH: "page_scrapes/addins3.html"
+    START: 3
+    STOP: -13
+    DIRECTORY: "addins3"
+    """
+    a_targets = extractor("page_scrapes/addin3.html", 3, -13)  # First 3 dead, last 13 dead
+    scraper_cacher(labeler(label_maker(a_targets), a_targets), "addin3")
 
-logger.info("FINISHED")
+    logger.info("FINISHED")
