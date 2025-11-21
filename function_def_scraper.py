@@ -29,7 +29,7 @@ The following pages are omitted due to more complex requirements for cell types.
 - Array: Special cell range linking to perform group operations
 - Database: Rectangular cell range defining simple database with first row indicating features, 
             and subsequent rows providing instance data
-- 
+- Spreadsheet: Several irregular definitions and possibility for cross system interactions. These are complex to handle in initial stage
 """
 base_targets = [
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060120.html?DbPAR=CALC",  # bitwise
@@ -45,7 +45,6 @@ base_targets = [
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060183.html?DbPAR=CALC",  # stats pt 3
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060184.html?DbPAR=CALC",  # stats pt 4
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060185.html?DbPAR=CALC",  # stats pt 5
-    "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060109.html?DbPAR=CALC",  # spreadsheet
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060110.html?DbPAR=CALC",  # text     (Contains sublinks to defs)
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060199.html?DbPAR=CALC",  # operators (Needs better scraping or by hand. Not many items)
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060111.html?DbPAR=CALC",  # Add-ins pt 1
@@ -67,7 +66,6 @@ base_labels = [
     "stat3",
     "stat4",
     "stat5",
-    "spreadsheet",
     "text",
     "operator",
     "addin1",
@@ -87,7 +85,11 @@ def jitter() -> float:
 
 
 def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
-    """Collect a copy of all scraped pages"""
+    """
+    Collect a copy of all scraped pages
+    :param labeled_targets: list of label:target pairs for scraping
+    :param directory: where to save the scraped pages if separate from root
+    """
     logger.info("Webscrape begin:")
 
     # Set the subdirectory to store page cache
@@ -118,11 +120,17 @@ def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
                 with open(filename, "wb") as f:
                     f.write(page.content)
             else:
-                logger.warn(f"Page {label} not scraped.")
+                logger.warning(f"Page {label} not scraped.")
 
 
 def extractor(html_file: str, start: int, stop: int) -> list[str]:
-    """Used to extract page sublinks needed to find additional grammar definitions"""
+    """
+    Used to extract page sublinks needed to find additional grammar definitions
+    :param html_file: path to html file
+    :param start: starting index for good links (inclusive)
+    :param stop: ending index for good links (exclusive)
+    :return: list of new link targets to scrape
+    """
     with open(html_file, "r") as f:
         logger.info(f"Beginning to parse {html_file}")
         f_soup = BeautifulSoup(f.read(), "html.parser")
@@ -132,14 +140,23 @@ def extractor(html_file: str, start: int, stop: int) -> list[str]:
 
 
 def labeler(labels: list[str], targets: list[str]) -> list[tuple]:
-    """Make nice pairs of labels and target URLs for easier processing later"""
+    """
+    Make nice pairs of labels and target URLs for easier processing later
+    :param labels: list of labels
+    :param targets: list of target URLs
+    :return: list of pairs of labels and target URLs
+    """
     lt = list(zip(labels, targets))
     logger.info("Labeled target pairs created.")
     return lt
 
 
 def label_maker(unlabeled_targets: list[str]) -> list[str]:
-    """Takes a list of URL targets, and makes a label list based on the HTML file in the path"""
+    """
+    Takes a list of URL targets, and makes a label list based on the HTML file in the path
+    :param unlabeled_targets: list of URL targets
+    :return: list of labels for the provided targets
+    """
     return [label.split("/")[-1].split(".")[0] for label in unlabeled_targets]
 
 
