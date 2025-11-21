@@ -226,8 +226,12 @@ def create_typed_signature(syntax: str, param_info: dict) -> str:
     for param in params:
         param_name = param[0]
         optional = param[1]
-        typed_param = type_parameter(param_name, param_info[param_name.strip('"')])
-        typed_params.append((typed_param, optional))
+        try:
+            typed_param = type_parameter(param_name, param_info[param_name.strip('"')])
+            typed_params.append((typed_param, optional))
+        except KeyError as e:
+            logger.error(f"{func_name} Missing required parameter {param_name}: {e}")
+            return None
 
     typed_signature = f"{func_name.upper()}("
     for typed_param in typed_params:
@@ -300,7 +304,8 @@ def extract_function_info(path: str) -> dict:
 
                     # Send a function syntax definition and the dictionary of parameters to descriptions for typing
                     typed_signature = create_typed_signature(func_def.text.strip(), param_info)
-                    function_info[func_name] = typed_signature
+                    if typed_signature:
+                        function_info[func_name] = typed_signature
     return function_info
 
 
@@ -327,7 +332,7 @@ def process_all(base_dir: str):
                     if functions:
                         stats["processed"] += 1
                         stats["functions"] += len(functions)
-                        with open(f"{os.path.join(root, file)}", "a") as outfile:
+                        with open(f"{os.path.join(root, file)}.txt", "a") as outfile:
                             for func_name, typed_signature in functions.items():
                                 outfile.write(f"{typed_signature}\n")
                                 logger.info(f"Wrote {func_name}")
