@@ -30,6 +30,8 @@ The following pages are omitted due to more complex requirements for cell types.
 - Database: Rectangular cell range defining simple database with first row indicating features, 
             and subsequent rows providing instance data
 - Spreadsheet: Several irregular definitions and possibility for cross system interactions. These are complex to handle in initial stage
+
+Edgecases may still exist on some pages where a small collection of functions are broken out into a separate page. To be handled later
 """
 base_targets = [
     "https://help.libreoffice.org/latest/en-US/text/scalc/01/04060120.html?DbPAR=CALC",  # bitwise
@@ -95,7 +97,7 @@ def scraper_cacher(labeled_targets: list[tuple], directory: str = None):
     # Set the subdirectory to store page cache
     subdir = directory if directory is not None else ""
     if not os.path.exists(f"page_scrapes/{subdir}"):
-        logger.info(f"Making 'page_scrapes' directory.")
+        logger.info(f"Making {subdir} directory.")
         os.mkdir(f"page_scrapes/{subdir}")
 
     for pair in labeled_targets:

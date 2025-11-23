@@ -18,14 +18,6 @@ logger = logging.getLogger(__name__)
 logger.info("INITIALIZED")
 
 
-# TODO Clean this up.
-# - Duplicate values
-# - Diff between number/integer?? Make integers numbers
-# - Logical is actually an number
-# - String should probably be Text
-# - Probably other things
-# - Prioritize checks against name of param. If that fails, then check description for keyword map
-# - Figure out how to type "Reference" -> edgecase Spreadsheet functions that breaks parser (GOT CUT maybe)
 def infer_type(param_name: str, description: str) -> str:
     """
     Infer the specific type of parameter based on its name and description.
@@ -42,113 +34,132 @@ def infer_type(param_name: str, description: str) -> str:
     desc_lower = description.lower()
     name_lower = param_name.lower()
 
+    DATE_KEYWORDS = ["date", "issue", "settlement", "maturity", "firstinterest", "lastinterest", "datepurchased", "firstperiod"]
+
+    RANGE_KEYWORDS = ["data", "data1", "data2", "values", "schedule", "range", "reference", "array"]
+
+    TEXT_KEYWORDS = ["string", "text", "findtext", "fromunit", "tounit", "from_currency", "to_currency"]
+
+    NUMBER_KEYWORDS = [
+        "number",
+        "value",
+        "integer",
+        "count",
+        "count1",
+        "count2",
+        "rate",
+        "yield",
+        "coupon",
+        "price",
+        "cost",
+        "salvage",
+        "life",
+        "period",
+        "nper",
+        "pv",
+        "fv",
+        "pmt",
+        "invest",
+        "x",
+        "n",
+        "m",
+        "r",
+        "factor",
+        "month",
+        "basis",
+        "type",
+        "mode",
+        "cumulative",
+        "c",
+        "frequency",
+        "degreesfreedom",
+        "degreesfreedom1",
+        "degreesfreedom2",
+        "trials",
+        "full_precision",
+        "triangulation_precision",
+        "lowerlimit",
+        "upperlimit",
+        "s",
+        "e",
+        "startperiod",
+        "endperiod",
+        "coefficients",
+        "principal",
+        "dividend",
+        "divisor",
+        "numerator",
+        "denominator",
+        "multiple",
+        "base",
+        "exponent",
+        "bottom",
+        "top",
+        "guess",
+        "nominalrate",
+        "nom",
+        "npery",
+        "redemption",
+        "investment",
+        "discount",
+        "par",
+        "radix",
+        "minimumlength",
+        "alpha",
+        "beta",
+        "lambda",
+        "mu",
+        "sigma",
+        "stdev",
+        "mean",
+        "sp",
+        "size",
+        "logical",
+        "percentage",
+        "percent",
+        "numeric",
+        "coordinate",
+        "angle",
+        "nsample",
+        "npopulation",
+        "position",
+    ]
+
+    # Prioritize parameter name, then description
     # Date/Time types
-    if any(
-        word in name_lower for word in ["date", "issue", "settlement", "maturity", "firstinterest", "datepurchased", "firstperiod"]
-    ):
+    if any(word in name_lower for word in DATE_KEYWORDS):
+        logger.info(f"{name_lower} marked as DATE")
         return "Date"
 
-    # Boolean/Logical types
-    if "logical" in name_lower or "boolean" in desc_lower or "true or false" in desc_lower:
-        return "Boolean"
-    if name_lower == "test" and "true or false" in desc_lower:
-        return "Boolean"
-
-    # String/Text types
-    if any(word in name_lower for word in ["text", "string", "currency", "findtext"]):
-        return "String"
-    if "text" in desc_lower or "string" in desc_lower or "character" in desc_lower:
-        return "String"
-
-    # Integer types
-    if "integer" in name_lower or "integer" in desc_lower:
-        return "Integer"
-    if any(word in name_lower for word in ["count", "frequency", "period", "nper", "npery"]):
-        if "integer" in desc_lower or "number of" in desc_lower:
-            return "Integer"
-
-    # Numeric types (more general)
-    if any(
-        word in name_lower
-        for word in [
-            "number",
-            "value",
-            "rate",
-            "price",
-            "cost",
-            "salvage",
-            "yield",
-            "coupon",
-            "redemption",
-            "investment",
-            "discount",
-            "nom",
-            "nominalrate",
-            "base",
-            "exponent",
-            "dividend",
-            "divisor",
-            "numerator",
-            "denominator",
-            "multiple",
-            "coefficient",
-            "bottom",
-            "top",
-            "guess",
-            "pmt",
-            "pv",
-            "fv",
-            "invest",
-            "factor",
-        ]
-    ):
-        return "Number"
-    if "number" in desc_lower or "numeric" in desc_lower or "value" in desc_lower:
-        return "Number"
-    if "percentage" in desc_lower or "percent" in desc_lower:
-        return "Number"
-    if "coordinate" in desc_lower or "angle" in desc_lower:
-        return "Number"
-
-    # Range/Array types
-    if "range" in name_lower or "array" in desc_lower or "cell range" in desc_lower:
-        return "Range"
-    if name_lower in ["values", "coefficients"]:
+    if any(word in name_lower for word in RANGE_KEYWORDS):
+        logger.info(f"{name_lower} marked as RANGE")
         return "Range"
 
-    # Position/Index types
-    if "position" in name_lower and "position" in desc_lower:
-        return "Integer"
+    if any(word in name_lower for word in TEXT_KEYWORDS):
+        logger.info(f"{name_lower} marked as TEXT")
+        return "Text"
 
-    # Function code (special integer)
-    if name_lower == "function" and "function code" in desc_lower:
-        return "Integer"
-
-    # Basis (typically 0-4 integer)
-    if name_lower == "basis":
-        return "Integer"
-
-    # Type parameter (integer code)
-    if name_lower == "type":
-        return "Integer"
-
-    # Month parameter
-    if name_lower == "month":
-        return "Integer"
-
-    # Life, Period (typically integer in finance functions)
-    if name_lower in ["life"]:
+    if any(word in name_lower for word in NUMBER_KEYWORDS):
+        logger.info(f"{name_lower} marked as NUMBER")
         return "Number"
 
-    # Par value (number)
-    if name_lower == "par":
+    if any(word in desc_lower for word in DATE_KEYWORDS):
+        logger.info(f"{name_lower} marked as DATE")
+        return "Date"
+
+    if any(word in desc_lower for word in RANGE_KEYWORDS):
+        logger.info(f"{name_lower} marked as RANGE")
+        return "Range"
+
+    if any(word in desc_lower for word in TEXT_KEYWORDS):
+        logger.info(f"{name_lower} marked as TEXT")
+        return "Text"
+
+    if any(word in desc_lower for word in NUMBER_KEYWORDS):
+        logger.info(f"{name_lower} marked as NUMBER")
         return "Number"
 
-    # Default to generic based on parameter name patterns
-    if name_lower.startswith("logical"):
-        return "Boolean"
-
-    # If still unknown, return generic
+    # Last catch case for troubleshooting if necessary
     return "Any"
 
 
@@ -304,6 +315,8 @@ def extract_function_info(path: str) -> dict:
 
                     # Send a function syntax definition and the dictionary of parameters to descriptions for typing
                     typed_signature = create_typed_signature(func_def.text.strip(), param_info)
+                    # Remove any functions that don't get typed for now
+                    # TODO Improve parser and type system to be more robust to typos and erroneous tagging
                     if typed_signature:
                         function_info[func_name] = typed_signature
     return function_info
