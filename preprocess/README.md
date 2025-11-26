@@ -1,7 +1,20 @@
-# Credits to LibAFL team
+# Preprocess Credits to LibAFL team
+```
+@inproceedings{libafl,
+ author       = {Andrea Fioraldi and Dominik Maier and Dongjia Zhang and Davide Balzarotti},
+ title        = {{LibAFL: A Framework to Build Modular and Reusable Fuzzers}},
+ booktitle    = {Proceedings of the 29th ACM conference on Computer and communications security (CCS)},
+ series       = {CCS '22},
+ year         = {2022},
+ month        = {November},
+ location     = {Los Angeles, U.S.A.},
+ publisher    = {ACM},
+}
+```
+
 # Gramatron preprocessing scripts
 
-In this folder live the scripts to convert a grammar (some examples in the `grammars/` subfolder) into a serialized Automaton.
+In this folder live the scripts to convert a grammar into a serialized Automaton.
 
 You need as first to convert the grammar to the GNF form using the `gnf_converter.py` Python script.
 

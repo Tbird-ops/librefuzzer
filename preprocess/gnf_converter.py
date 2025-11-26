@@ -287,7 +287,7 @@ def main(grammar_file, out, start):
             data = fd.readlines()
         grammar = process_antlr4_grammar(data)
     else:
-        raise ("Unknwown file format passed. Accepts (.g4/.json)")
+        raise ("Unknown file format passed. Accepts (.g4/.json)")
 
     grammar = convert_to_gnf(grammar, start)
     with open(out, "w+") as fd:
@@ -297,19 +297,11 @@ def main(grammar_file, out, start):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Script to convert grammar to GNF form"
-    )
-    parser.add_argument(
-        "--gf", type=str, required=True, help="Location of grammar file"
-    )
-    parser.add_argument(
-        "--out", type=str, required=True, help="Location of output file"
-    )
+    parser = argparse.ArgumentParser(description="Script to convert grammar to GNF form")
+    parser.add_argument("--gf", type=str, required=True, help="Location of grammar file")
+    parser.add_argument("--out", type=str, required=True, help="Location of output file")
     parser.add_argument("--start", type=str, required=True, help="Start token")
-    parser.add_argument(
-        "--debug", action="store_true", help="Write intermediate states to debug files"
-    )
+    parser.add_argument("--debug", action="store_true", help="Write intermediate states to debug files")
     args = parser.parse_args()
     DEBUG = args.debug
 

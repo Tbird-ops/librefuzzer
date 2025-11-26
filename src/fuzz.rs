@@ -34,7 +34,7 @@ use libafl_bolts::{
 };
 
 // TODO Why is this import failing? What is libfuzzer_init etc?
-use libafl_targets::{EDGES_MAP, MAX_EDGES_FOUND, libfuzzer_initialize, libfuzzer_test_one_input};
+use libafl_targets::{EDGES_MAP, MAX_EDGES_FOUND}; // TODO figure out libfuzzer_initialize, libfuzzer_test_one_input};
 
 fn read_automaton_from_file<P: AsRef<Path>>(path: P) -> Automaton {
     let file = fs::File::open(path).unwrap();
@@ -96,6 +96,7 @@ pub fn fuzz() {
     // TODO WHERE CAN THIS GO? MUST IT STAY HERE?
     let calibration = CalibrationStage::new(&map_feedback);
     let time_feedback = TimeFeedback::new(&time_observer);
+
     // Compose feedback based on both edges and timing
     let mut feedback = feedback_or!(map_feedback, time_feedback);
 

@@ -1,6 +1,6 @@
 /target
 /.idea
 /.venv
-notes
 /office_files
 /page_scrapes
+/preprocess/construct_automata/target
