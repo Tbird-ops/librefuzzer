@@ -184,6 +184,37 @@ pub fn fuzz(grammar_postcard: PathBuf, output_dir: PathBuf) {
     let mut stages = tuple_list!(StdMutationalStage::new(mutator));
 
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //      PROFILING    ~ Credits to LibAFL team
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // Use this code to profile the generator performance
+    use libafl::generators::Generator;
+    use std::collections::HashSet;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn calculate_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+        t.hash(&mut s);
+        s.finish()
+    }
+
+    let mut set = HashSet::new();
+    let st = libafl_bolts::current_milliseconds();
+    let mut b = vec![];
+    let mut c = 0;
+    for _ in 0..100000 {
+        let i = generator.generate(&mut state).unwrap();
+        i.unparse(&mut b);
+        set.insert(calculate_hash(&b));
+        c += b.len();
+    }
+    println!("{} / {}", c, libafl_bolts::current_milliseconds() - st);
+    println!("{} / 100000", set.len());
+
+    return;
+
+
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     //      RUN
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     fuzzer
