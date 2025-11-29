@@ -7,9 +7,17 @@ edition = "2024"
 clap = { version = "4.5.51", features = ["derive"] }
 libafl = { path = "/home/tbird/tools/LibAFL/crates/libafl" }
 libafl_bolts = { path = "/home/tbird/tools/LibAFL/crates/libafl_bolts" }
-libafl_targets = { path = "/home/tbird/tools/LibAFL/crates/libafl_targets" }
-log = {  version = "0.4.28", features = ["release_max_level_info"]}
+libafl_targets = { path = "/home/tbird/tools/LibAFL/crates/libafl_targets", features = [
+    "sancov_pcguard_hitcounts",
+    "libfuzzer",
+    "sancov_cmplog"
+] }
 postcard = { version = "1.1.3", features = ["alloc"], default-features = false }
+
+# TODO Include only when building
+libafl_cc = { path = "/home/tbird/tools/LibAFL/crates/libafl_cc" }
+log = {  version = "0.4.28", features = ["release_max_level_info"]}
+
 
 [profile.dev]
 panic = "abort"

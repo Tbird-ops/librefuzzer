@@ -6,8 +6,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use libafl::observers::CanTrack;
-use libafl::stages::CalibrationStage;
 use libafl::{
     corpus::{InMemoryCorpus, OnDiskCorpus},
     events::SimpleEventManager,
@@ -22,8 +20,9 @@ use libafl::{
         GramatronRandomMutator, GramatronRecursionMutator, GramatronSpliceMutator,
         HavocScheduledMutator,
     },
-    observers::{HitcountsMapObserver, StdMapObserver, TimeObserver},
+    observers::{HitcountsMapObserver, StdMapObserver, TimeObserver, CanTrack},
     schedulers::{IndexesLenTimeMinimizerScheduler, QueueScheduler},
+    stages::CalibrationStage,
     stages::mutational::StdMutationalStage,
     state::StdState,
 };
@@ -32,9 +31,7 @@ use libafl_bolts::{
     shmem::{ShMemProvider, StdShMemProvider},
     tuples::tuple_list,
 };
-
-// TODO Why is this import failing? What is libfuzzer_init etc?
-use libafl_targets::{EDGES_MAP, MAX_EDGES_FOUND}; // TODO figure out libfuzzer_initialize, libfuzzer_test_one_input};
+use libafl_targets::{libfuzzer_initialize, libfuzzer_test_one_input, std_edges_map_observer};
 
 fn read_automaton_from_file<P: AsRef<Path>>(path: P) -> Automaton {
     let file = fs::File::open(path).unwrap();
@@ -51,7 +48,7 @@ fn read_automaton_from_file<P: AsRef<Path>>(path: P) -> Automaton {
 // - MiMalloc for performance??
 // - Other performance optimizations?
 // - Set up good debug logging?
-pub fn fuzz() {
+pub fn fuzz(grammar_postcard: PathBuf, output_dir: PathBuf) {
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     //      MONITOR
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -78,14 +75,8 @@ pub fn fuzz() {
     //      OBSERVERS
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // Create an observation channel using the both edges map and time based tracking
-    let edges_observer = unsafe {
-        HitcountsMapObserver::new(StdMapObserver::from_mut_ptr(
-            "edges",
-            EDGES_MAP.as_mut_ptr(),
-            MAX_EDGES_FOUND,
-        ))
-        .track_indices()
-    };
+    let edges_observer =
+        HitcountsMapObserver::new(unsafe{ std_edges_map_observer("edges")}).track_indices();
     let time_observer = TimeObserver::new("time");
 
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -93,8 +84,6 @@ pub fn fuzz() {
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // Feedback to rate the interestingness of an input
     let map_feedback = MaxMapFeedback::new(&edges_observer);
-    // TODO WHERE CAN THIS GO? MUST IT STAY HERE?
-    let calibration = CalibrationStage::new(&map_feedback);
     let time_feedback = TimeFeedback::new(&time_observer);
 
     // Compose feedback based on both edges and timing
@@ -118,8 +107,7 @@ pub fn fuzz() {
         InMemoryCorpus::new(),
         // Corpus in which we store solutions (crashes in this example),
         // on disk so the user can get them after stopping the fuzzer
-        // TODO FIX PATH
-        OnDiskCorpus::new(PathBuf::from("./crashes")).unwrap(),
+        OnDiskCorpus::new(output_dir).unwrap(),
         // States of the feedbacks.
         // The feedbacks can report the data that should persist in the State.
         &mut feedback,
@@ -163,8 +151,7 @@ pub fn fuzz() {
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     //      CFG PARSER
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    // TODO Fix pathing
-    let automaton = read_automaton_from_file(PathBuf::from("auto.postcard"));
+    let automaton = read_automaton_from_file(grammar_postcard);
     let mut generator = GramatronGenerator::new(&automaton);
 
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

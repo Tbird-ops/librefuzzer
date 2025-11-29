@@ -14,7 +14,7 @@ import string
 # Easier logging control for tracking program status
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.info("INITIALIZED")
+logger.info("INITIALIZED CFG_BUILDER.PY")
 
 
 def initialize_amalgamation() -> dict:
@@ -31,37 +31,26 @@ def initialize_amalgamation() -> dict:
         "START": ["FORMULA"],
         "FORMULA": ["'=' EXPRESSION"],
         "EXPRESSION": ["COMPARE_EXPR"],
-        "COMPARE_EXPR": ["CONCAT_EXPR", "CONCAT_EXPR COMPARE_RECUR"],
-        "COMPARE_RECUR": ["COMPARE_OP CONCAT_EXPR", "COMPARE_OP CONCAT_EXPR COMPARE_RECUR"],
-        "CONCAT_EXPR": ["ARITH_EXPR", "ARITH_EXPR CONCAT_RECUR"],
-        "CONCAT_RECUR": ["CONCAT ARITH_EXPR", "CONCAT ARITH_EXPR CONCAT_RECUR"],
-        "ARITH_EXPR": ["PERCENT_EXPR", "PERCENT_EXPR ARITH_RECUR"],
-        "ARITH_RECUR": ["ARITH_OP PERCENT_EXPR", "ARITH_OP PERCENT_EXPR ARITH_RECUR"],
-        "PERCENT_EXPR": ["UNARY_EXPR", "UNARY_EXPR PERCENT"],
-        "UNARY_EXPR": ["UNION_EXPR", "'+' UNION_EXPR", "'-' UNION_EXPR"],
-        "UNION_EXPR": ["INTERSECT_EXPR", "INTERSECT_EXPR UNION_RECUR"],
-        "UNION_RECUR": ["UNION INTERSECT_EXPR", "UNION INTERSECT_EXPR UNION_RECUR"],
-        "INTERSECT_EXPR": ["RANGE_EXPR", "RANGE_EXPR INTERSECT_RECUR"],
-        "INTERSECT_RECUR": ["INTERSECTION RANGE_EXPR", "INTERSECTION RANGE_EXPR INTERSECT_RECUR"],
-        "RANGE_EXPR": ["FACTOR", "FACTOR ':' FACTOR"],
-        "FACTOR": ["LITERAL", "REFERENCE", "FUNCTION_CALL", "'(' EXPRESSION ')'"],
+        "COMPARE_EXPR": ["ARITH_EXPR", "ARITH_EXPR COMPARE_OP ARITH_EXPR"],
+        "ARITH_EXPR": ["FACTOR", "FACTOR ARITH_OP FACTOR"],
+        "FACTOR": ["LITERAL", "REFERENCE", "FUNCTION_CALL", "FUNC_BEG EXPRESSION FUNC_END"],
         "LITERAL": ["NUMBER", "TEXT", "DATE"],
         "REFERENCE": ["CELL", "CELL ':' CELL"],
         "FUNCTION_CALL": [],
-        "ARG_RECUR": ["';' EXPRESSION", "';' EXPRESSION ARG_RECUR"],
-        "NEG": ["'-'"],
+        "ARG_RECUR": ["SEP FACTOR", "SEP FACTOR ARG_RECUR"],
+        "DASH": ["'-'"],  # Works as negative, arithmetic minus, and date separator
+        "SEP": ["';'"],
+        "FUNC_BEG": ["'('"],
+        "FUNC_END": ["')'"],
+        "ABSOLUTE": ["'$'"],
         "ARITH_OP": [
             "'+'",
-            "'-'",
+            "DASH",
             "'*'",
             "'/'",
             "'^'",
         ],
-        "PERCENT": ["'%'"],
         "COMPARE_OP": ["'='", "'>'", "'<'", "'>='", "'<='", "'<>'"],
-        "CONCAT": ["'&'"],
-        "UNION": ["'~'"],
-        "INTERSECTION": ["'!'"],
         "NUMBER": [
             "'1'",
             "'2'",
@@ -97,11 +86,7 @@ def initialize_amalgamation() -> dict:
             "'9957'",  # High edge of years
             "'9958'",
             "'9959'",
-            "'9960'",
-            "FUZZNUMBER",
-            "NEG NUMBER",
-        ],
-        "FUZZNUMBER": [
+            "'9960'",  # Below are fuzzing numbers
             "'0'",  # Zeros
             "'0.0'",  # float zero
             "'-0'",  # negative 0
@@ -128,32 +113,29 @@ def initialize_amalgamation() -> dict:
             "'4294967296'",  # overflow
             "'999999999999999999999'",  # big number lol
             "'-999999999999999999999'",  # small number lol
+            "DASH NUMBER",
         ],
-        "TEXT": ["LETTER", "TEXT LETTER"],
-        "LETTER": [f"'{letter}'" for letter in string.ascii_letters],
+        "TEXT": ["LETTER", "LETTER TEXT"],
+        "LETTER": [f"'{letter}'" for letter in string.ascii_uppercase],
         "CELL": [
             "LETTER NUMBER",
-            "'$' LETTER '$' NUMBER",
-            "'$' LETTER NUMBER",
-            "LETTER '$' NUMBER",
+            "ABSOLUTE LETTER ABSOLUTE NUMBER",
+            "ABSOLUTE LETTER NUMBER",
+            "LETTER ABSOLUTE NUMBER",
             "'A1'",
             "'B1'",
             "'C1'",
-            "'a2'",
-            "'b2'",
-            "'c2'",
         ],
-        "RANGE": ["CELL ':' CELL"],
-        "DATE": ["NUMBER '-' NUMBER '-' NUMBER"],
+        "DATE": ["NUMBER DASH NUMBER DASH NUMBER"],
     }
     return cfg_json
 
 
 # For each function
-# First parameter: "EXPRESSION"
-# Next parameters: "';' EXPRESSION"
-# Optional parameters: provide variation with either "';' EXPRESSION" or "';'" dictating filled or empty
-# IF recursive: provide variation with either "EXPRESSION" or "EXPRESSION ARG_RECUR"
+# First parameter: "FACTOR"
+# Next parameters: "SEP FACTOR"
+# Optional parameters: provide variation with either "SEP FACTOR" or "SEP" dictating filled or empty
+# IF recursive: provide variation with either "FACTOR" or "FACTOR ARG_RECUR"
 def parse_function(line: str) -> list:
     """
     Parse each provided function and create a CFG language ready value
@@ -166,29 +148,29 @@ def parse_function(line: str) -> list:
     try:
         parameters = match.group(2).split(";")
         if " N: " in parameters[0]:
-            variations.append(f"'{function_name}(' EXPRESSION ")
-            variations.append(f"'{function_name}(' EXPRESSION ARG_RECUR ")
+            variations.append(f"'{function_name}' FUNC_BEG FACTOR ")
+            variations.append(f"'{function_name}' FUNC_BEG FACTOR ARG_RECUR ")
         else:
             for i in range(len(parameters)):
                 if i == 0:
-                    variations.append(f"'{function_name}(' EXPRESSION ")
+                    variations.append(f"'{function_name}' FUNC_BEG FACTOR ")
                 elif "[" in parameters[i]:
                     for term in range(len(variations)):
                         variations.append(variations[term])
                     for term in range(len(variations)):
                         if term < len(variations) / 2:
-                            variations[term] += "';' EXPRESSION "
+                            variations[term] += "SEP FACTOR "
                         else:
-                            variations[term] += "';' "
+                            variations[term] += "SEP "
                 else:
                     for term in range(len(variations)):
-                        variations[term] += "';' EXPRESSION "
+                        variations[term] += "SEP FACTOR "
 
     except IndexError as e:
         logger.warning(f"{function_name} has no parameters")
     finally:
         for term in range(len(variations)):
-            variations[term] += "')'"
+            variations[term] += "FUNC_END"
         return variations
 
 
@@ -219,3 +201,5 @@ amalgamation = initialize_amalgamation()
 amalgamation["FUNCTION_CALL"] = process_all("page_scrapes")
 with open("amalgamation.json", "w", encoding="utf-8") as f:
     json.dump(amalgamation, f, ensure_ascii=False, indent=4)
+
+logger.info("FINISHED CFG BUILD PROC")

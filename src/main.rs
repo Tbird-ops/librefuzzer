@@ -22,11 +22,11 @@ fn type_printer<T>(_: &T) {
 
 fn main() {
     let args: Opt = Opt::parse();
-    type_printer(&args);
     let grammar_filepath: PathBuf = args.grammar;
-    type_printer(&grammar_filepath);
+    let output_dir: PathBuf = args.output;
 
-    let contents: String = fs::read_to_string(&grammar_filepath).unwrap();
-    println!("Contents: {contents}");
-
+    println!("GRAMMAR PROVIDED: {:#?}", grammar_filepath);
+    println!("OUTPUT DIR: {:#?}", output_dir);
+    println!("Starting fuzzer....");
+    fuzz(grammar_filepath, output_dir);
 }

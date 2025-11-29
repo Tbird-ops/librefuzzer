@@ -15,7 +15,7 @@ import logging
 # Easier logging control for tracking program status
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.info("INITIALIZED")
+logger.info("INITIALIZED GRAMMAR_EXTRACTOR.PY")
 
 
 # TODO Typing system may currently be too aggressive with possible values
@@ -372,4 +372,4 @@ if __name__ == "__main__":
     base_dir = os.path.abspath("page_scrapes")
     logger.info("Beginning extraction at " + base_dir)
     process_all(base_dir)
-    logger.info("FINISHED")
+    logger.info("FINISHED GRAMMAR EXTRACTION")

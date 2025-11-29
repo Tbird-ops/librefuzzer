@@ -25,3 +25,5 @@ pub struct Opt {
     )]
     pub output: PathBuf,
 }
+
+//TODO When multithreading is implemented, ensure there is a way to specify cores.

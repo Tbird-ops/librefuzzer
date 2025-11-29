@@ -12,7 +12,7 @@ import random as rand  # Handle random number creation
 # Easier logging control for tracking program status
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.info("INITIALIZED")
+logger.info("INITIALIZING FUNCTION_DEF_SCRAPER.PY")
 
 import requests  # Perform the web requests
 from bs4 import BeautifulSoup  # Help parse and further control
@@ -191,15 +191,4 @@ if __name__ == "__main__":
     t_targets = extractor("page_scrapes/text.html", 2, -10)  # First 2 dead, last 10 dead
     scraper_cacher(labeler(label_maker(t_targets), t_targets), "text")
 
-    """
-    ADDINS3
-    Add additional targets since there are some breakout pages
-    PATH: "page_scrapes/addins3.html"
-    START: 3
-    STOP: -13
-    DIRECTORY: "addins3"
-    """
-    a_targets = extractor("page_scrapes/addin3.html", 3, -13)  # First 3 dead, last 13 dead
-    scraper_cacher(labeler(label_maker(a_targets), a_targets), "addin3")
-
-    logger.info("FINISHED")
+    logger.info("FINISHED SCRAPER")

@@ -4,3 +4,6 @@
 /office_files
 /page_scrapes
 /preprocess/construct_automata/target
+/cfg_pipeline/page_scrapes
+amalgamation*
+
